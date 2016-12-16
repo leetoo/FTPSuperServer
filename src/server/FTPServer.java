@@ -1,6 +1,8 @@
-import sun.rmi.runtime.Log;
+package server;
 
-import java.io.IOException;
+import server.ClientListener;
+
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -13,7 +15,7 @@ public class FTPServer {
     private ServerSocket serverSocket;
     private static final int SERVER_PORT = 21;
 
-    void run(){
+    public void run(){
 
         try {
             serverSocket = new ServerSocket(SERVER_PORT);
@@ -25,12 +27,23 @@ public class FTPServer {
         while (true){
 
             try {
-                Socket client = serverSocket.accept(); //Wait for a client to connect
+
+                Socket socket = serverSocket.accept(); //Wait for a client to connect
+                System.out.println("accepteeeed");
+                //ready output stream to talk with client
+                OutputStream os = socket.getOutputStream();
+                PrintWriter writer = new PrintWriter(os);
+                ///write welcome message to the client
+                writer.write("200\n");
+                writer.flush();
+                //Open for client listener
+                ClientListener listener = new ClientListener(socket);
+                listener.run();
+
             } catch (IOException e) {
                 System.err.println("Exception thrown while connecting client: " + e.getMessage());
             }
 
-            //TODO: client is connected so start the command input thread
         }
     }
 }
