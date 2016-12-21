@@ -12,18 +12,9 @@ public class ServerUser {
         this.password = password;
     }
 
-    public String validateUser(String username, String password){
 
-        String result = null;
-
-        if(this.username.equals(username)
-                && this.password == password){
-
-            result = "230 welcome to our FTP server\n";
-            return result;
-        }else{ //invalid password or username
-            result = "430 - invalid username or password\n";
-            return result;
-        }
+    @Override
+    public String toString() {
+        return username + " helloooo" + password;
     }
 }
