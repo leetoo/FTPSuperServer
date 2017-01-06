@@ -2,6 +2,8 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Created by madsl on 16-Dec-16.
@@ -23,7 +25,11 @@ public class ClientHandler extends Thread implements Runnable {
     private String username, password;
     private ServerUser user;
     private boolean isUserValidate = false;
-
+    //Boolean for account state
+    private boolean isLoggedIn = true;
+    //Data connection thread
+    private FileTransfer dataConnection = null;
+    private int passivePortNumber;
 
     public ClientHandler(Socket socket, FTPServer server) {
         this.socket = socket;
@@ -44,44 +50,130 @@ public class ClientHandler extends Thread implements Runnable {
         writer.flush();
         //get clients credentials and authenticate
         validateUser();
-        //Authentication of user done! Proceed
+        //Authentication of user done!
+        handleClientResponse();
+    }
 
+    private void handleClientResponse() {
+
+        while (isLoggedIn) {
+            String[] response = getCommand();
+            //Is valid command?
+            switch (response[0]) {
+                case "SYST": //client wants to know about system (server)
+                    //A: stand for ASCII text (normal characters)
+                    //T: is for telnet format control. Communication between server and client
+                    //Shall follow this protocol
+                    writer.println("Windows Type: AT\n");
+                    break;
+                case "FEAT": //clients wants to know what features the server has
+                    //TODO: passive mode a feature?
+                    writer.println("211 no features\n");
+                    break;
+                case "PWD":
+                    writer.println("200 " + user.getCurrentWorkingDirectory());
+                    break;
+                case "TYPE": //User wants to set transfer mode
+                    writer.println("200 TYPE is now binary\n"); //TODO: how to implement binary?
+                    break;
+                case "PASV": //Passive mode
+                    int[] ports = getPorts();
+                    passivePortNumber = (ports[0] * 256) + ports[1];
+//                    dataConnection = new FileTransfer(this, ((ports[0] * 256) + ports[1]));
+//                    dataConnection.start();
+                    writer.println("227 Entering Passive Mode (127,0,0,1," + ports[0] + "," + ports[1] + ")\n");
+                    break;
+                case "PORT": //User wants to connect to a specific port for data transfer
+                    if (dataConnection != null) { //Already a dataConnection established
+                        dataConnection.terminateThread(); //Stop current file transfer thread
+                        dataConnection = null;
+                    }
+                    //get the port numbers
+                    String[] portInformation = response[1].split(",");
+                    int p1 = Integer.parseInt(portInformation[4]);
+                    int p2 = Integer.parseInt(portInformation[5]);
+                    int portNumber = ((p1 * 256) + p2);
+                    //start thread that handles the data connection
+                    //dataConnection = new FileTransfer(this, portNumber);
+                    dataConnection.start();
+                    //Inform client
+                    writer.println("200 port open\n");
+                    break;
+                case "LIST":
+                    dataConnection = new FileTransfer(this,passivePortNumber,"LIST");
+                    writer.println("150 opening connection");
+                    dataConnection.start();
+                    break;
+                default:
+                    writer.println("502 commands not implemented");
+                    break;
+            }
+            writer.flush();
+        }
+    }
+
+    public void shutDownDataConnection(){
+        dataConnection = null;
+        writer.println("226 Closing data connection");
+    }
+
+    /**
+     * Method that takes client input and parses it to two strings: command and message
+     *
+     * @returns an array where index 0 is the command and index 1 is the message
+     */
+    private String[] getCommand() {
+        String message;
+
+        try {
+            //retrieve message from client
+            message = reader.readLine();
+            array = message.split(" ");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return array;
     }
 
     /**
      * Calls handlePassword and handleUsername. Method then verifies the user with the
      * server.
      */
-    private void validateUser(){
+    private void validateUser() {
 
-        while(!isUserValidate) {
+        while (!isUserValidate) {
             handleUsername();
             handlePassword();
             user = new ServerUser(username, password);
             if (server.authenticateUser(user)) { //User is authenticated
                 isUserValidate = true;
+                writer.println("230 you are logged in");
+                writer.flush();
             } else {
                 //Invalid credentials
-                //TODO: Credentials invalid, how to handle?
+                System.out.println("Invalid user");
                 validateUser();
             }
         }
 
+        user.setCurrentWorkingDirectory("/home");
     }
 
     //TODO: what happens when wrong password? send user and then password again? or just pass?
     //TODO: Same with username
+
     /**
      * Gets password from client and handles it
      */
     private void handlePassword() {
         array = getCommand();
         //Handle client message
-        if (array[0].equals("PASS")){
+        if (array[0].equals("PASS")) {
             password = array[1];
-        }else{
+        } else {
             writer.println("430 you need to log in");
-            handlePassword();
+            getCommand();
         }
 
     }
@@ -90,41 +182,24 @@ public class ClientHandler extends Thread implements Runnable {
      * Gets username from client and handles it
      */
     private void handleUsername() {
-        String username = "";
         //get username
         array = getCommand();
         //handle client message
-        if (array[0].equals("USER")){
+        if (array[0].equals("USER")) {
             username = array[1]; //Set username
             writer.println("331 need password");
-        }else{
+        } else {
             writer.println("530 you need to log in");
-            handleUsername();
+            getCommand();
         }
         writer.flush();
     }
 
-    /**
-     * Method that takes client input and parses it to two strings: command and message
-     * @returns an array where index 0 is the command and index 1 is the message
-     */
-    private String[] getCommand(){
-        String message = "";
-        String command = "";
-        //TODO: all commands 4 letters?
-        try {
-            //retrive message from client
-            message = reader.readLine();
-            //get the first four characters
-            for (int i = 0; i < 4; ++i) {
-                command += message.charAt(i);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        String[] array = {command,message};
-        return array;
+    public int[] getPorts() {
+        Random random = new Random();
+        int p1 = (random.nextInt(100 - 1 + 1) + 1);
+        int p2 = (random.nextInt(100 - 1 + 1) + 1);
+        int[] ports = {p1, p2};
+        return ports;
     }
 }

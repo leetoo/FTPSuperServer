@@ -1,8 +1,11 @@
 package server;
 
+import com.sun.corba.se.spi.activation.Server;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +30,8 @@ public class FTPServer {
     private static ArrayList<ServerUser> users;
     //Creating a directory
     private Map<String, ArrayList<String>> directory;
+    private ArrayList<String> root;
+    private File rootFolder;
 
     public void run() {
 
@@ -65,15 +70,44 @@ public class FTPServer {
     }
 
     private void loadDirectory(){
-        //TODO: load directory
+        //init
+        directory = new HashMap<>();
+        //Get the root folder
+        try {
+            rootFolder = new File("./home");
+            root = new ArrayList<>();
+            directory.put(rootFolder.getName(),root);
+        }catch (Exception e){
+            System.err.println("Root folder not found! " + e.getMessage());
+        }
+
+        File[] listOfFiles = rootFolder.listFiles();
+
+        for(int i = 0; i < listOfFiles.length; ++i){
+            if(listOfFiles[i].isFile()){
+                root.add(listOfFiles[i].getName());
+            }
+        }
+
+        System.out.println("Directory: " + directory.toString());
     }
 
-    public synchronized boolean authenticateUser(ServerUser user){
-        if(users.contains(user)){
-            return true;
-        }else{
-            return false;
+
+
+    synchronized Map<String, ArrayList<String>> getDirectory(){
+        return directory;
+    }
+
+    synchronized boolean authenticateUser(ServerUser user){
+
+        for(ServerUser user1 : users){
+            if(user1.getUsername().equals(user.getUsername())
+                    && user1.getPassword().equals(user.getPassword())){
+                return true;
+            }
         }
+
+        return false;
     }
     /**
      * Takes all the users from the "users.txt" file and loads the into the
@@ -101,6 +135,7 @@ public class FTPServer {
         }catch (IOException e){
             System.err.println(e.getMessage());
         }
+
     }
 
 
