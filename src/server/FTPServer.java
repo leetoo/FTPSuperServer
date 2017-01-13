@@ -6,9 +6,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by madsl on 15-Dec-16.
@@ -29,9 +27,8 @@ public class FTPServer {
     //Arraylist for all the users
     private static ArrayList<ServerUser> users;
     //Creating a directory
-    private Map<String, ArrayList<String>> directory;
-    private ArrayList<String> root;
-    private File rootFolder;
+    private Map<String, ArrayList<File>> directory;
+    private StringBuilder path;
 
     public void run() {
 
@@ -66,38 +63,46 @@ public class FTPServer {
         directory = new HashMap<>();
         users = new ArrayList<>();
         loadUsers();
-        loadDirectory();
+        path = new StringBuilder();
+        path.append("./home");
+        loadDirectory(path.toString());
+        Set<String> keys =  directory.keySet();
+        System.out.println(keys);
     }
 
-    private void loadDirectory(){
-        //init
-        directory = new HashMap<>();
-        //Get the root folder
+    private void loadDirectory(String dirName){
+
         try {
-            rootFolder = new File("./home");
-            root = new ArrayList<>();
+            //Get the root folder
+            ArrayList<File> root = new ArrayList<>();
+            File rootFolder = new File(dirName);
             directory.put(rootFolder.getName(),root);
+
+            File[] listOfFiles = rootFolder.listFiles();
+
+            for(int i = 0; i < listOfFiles.length; ++i){
+                if(listOfFiles[i].isFile()){
+                    root.add(listOfFiles[i]);
+                }
+                if(listOfFiles[i].isDirectory()){
+                    root.add(listOfFiles[i]);
+                    path.append("/"+listOfFiles[i].getName());
+                    loadDirectory(path.toString());
+                }
+            }
         }catch (Exception e){
             System.err.println("Root folder not found! " + e.getMessage());
         }
+    }
 
-        File[] listOfFiles = rootFolder.listFiles();
-
-        for(int i = 0; i < listOfFiles.length; ++i){
-            if(listOfFiles[i].isFile()){
-                root.add(listOfFiles[i].getName());
-            }
-        }
-
-        System.out.println("Directory: " + directory.toString());
+    synchronized boolean validateDirectoryName(String name){
+        return directory.containsKey(name);
     }
 
 
-
-    synchronized Map<String, ArrayList<String>> getDirectory(){
-        return directory;
+    synchronized ArrayList<File> getDirectory(String dirName){
+        return directory.get(dirName);
     }
-
     synchronized boolean authenticateUser(ServerUser user){
 
         for(ServerUser user1 : users){

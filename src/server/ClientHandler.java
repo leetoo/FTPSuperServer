@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -71,11 +72,20 @@ public class ClientHandler extends Thread implements Runnable {
                     writer.println("211 no features\n");
                     break;
                 case "PWD":
-                    writer.println("257 " + user.getCurrentWorkingDirectory()+"/user/homeboy" + "\n");
+                    writer.println("257 " + user.getCurrentWorkingDirectory() + "\n");
                     break;
                 case "CWD":
-                    user.setCurrentWorkingDirectory(response[1]);
-                    writer.println("200 curretn directory is: " + response[1]);
+                    String[] dirs = response[1].split("/");
+                    String directoryName = dirs[dirs.length-1];
+                    System.out.println(directoryName);
+
+                    if(server.validateDirectoryName(directoryName)){
+                            sendList(server.getDirectory(directoryName));
+                    }else{
+                        //TOOD: send appropriate response
+                        System.out.println("Invalid dir name");
+                    }
+                    break;
                 case "TYPE": //User wants to set transfer mode
                     writer.println("200 TYPE is now binary\n"); //TODO: how to implement binary?
                     break;
@@ -98,9 +108,7 @@ public class ClientHandler extends Thread implements Runnable {
                     writer.println("200 port ready\n");
                     break;
                 case "LIST":
-                    dataConnection = new FileTransfer(this,passivePortNumber,"LIST");
-                    writer.println("150 opening connection");
-                    dataConnection.start();
+                    //sendList();
                     break;
                 default:
                     writer.println("502 commands not implemented");
@@ -108,6 +116,12 @@ public class ClientHandler extends Thread implements Runnable {
             }
             writer.flush();
         }
+    }
+
+    void sendList(ArrayList<File> dir){
+        dataConnection = new FileTransfer(this,passivePortNumber,"LIST", dir);
+        writer.println("150 opening connection");
+        dataConnection.start();
     }
 
     public void shutDownDataConnection(){

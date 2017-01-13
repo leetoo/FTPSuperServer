@@ -30,12 +30,8 @@ public class ServerUser {
     }
 
     void setCurrentWorkingDirectory(String currentWorkingDirectory) {
-        this.currentWorkingDirectory = null;
         this.currentWorkingDirectory = new StringBuilder(currentWorkingDirectory);
     }
-
-    //Go back
-    //Go further
 
 
     @Override

@@ -5,6 +5,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 /**
@@ -24,7 +25,8 @@ public class FileTransfer extends Thread implements Runnable {
     private ObjectOutputStream objStream;
     private boolean terminate = false;
 
-    public FileTransfer(ClientHandler client, int socketNumber, String command) {
+    //TODO: make multiple constructor matching action
+    public FileTransfer(ClientHandler client, int socketNumber, String command, ArrayList<File> files) {
         this.client = client;
         this.socketNumber = socketNumber;
         this.command = command;
@@ -50,7 +52,17 @@ public class FileTransfer extends Thread implements Runnable {
         }
 
         if (command.equals("LIST")) {
-            System.out.println("made it");
+
+            String dir =    "dr-xr-xr-x  1 noone    nogroup    148943 Apr 29 2013  10181305 \n" +
+                        "dr-xr-xr-x  1 noone    nogroup        53 Aug 30 2012  1 \n" +
+                        "-r-xr-xr-x  1 noone    nogroup   2492297 Oct 18 14:05 10181301\n" +
+                    "dr-xr-xr-x  1 noone    nogroup     88260 Oct 18 14:10 10181302";
+            try {
+                stream.write(dir.getBytes());
+                stream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             client.shutDownDataConnection();
         }
 
