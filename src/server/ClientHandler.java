@@ -71,16 +71,17 @@ public class ClientHandler extends Thread implements Runnable {
                     writer.println("211 no features\n");
                     break;
                 case "PWD":
-                    writer.println("200 " + user.getCurrentWorkingDirectory());
+                    writer.println("257 " + user.getCurrentWorkingDirectory()+"/user/homeboy" + "\n");
                     break;
+                case "CWD":
+                    user.setCurrentWorkingDirectory(response[1]);
+                    writer.println("200 curretn directory is: " + response[1]);
                 case "TYPE": //User wants to set transfer mode
                     writer.println("200 TYPE is now binary\n"); //TODO: how to implement binary?
                     break;
                 case "PASV": //Passive mode
                     int[] ports = getPorts();
                     passivePortNumber = (ports[0] * 256) + ports[1];
-//                    dataConnection = new FileTransfer(this, ((ports[0] * 256) + ports[1]));
-//                    dataConnection.start();
                     writer.println("227 Entering Passive Mode (127,0,0,1," + ports[0] + "," + ports[1] + ")\n");
                     break;
                 case "PORT": //User wants to connect to a specific port for data transfer
@@ -93,11 +94,8 @@ public class ClientHandler extends Thread implements Runnable {
                     int p1 = Integer.parseInt(portInformation[4]);
                     int p2 = Integer.parseInt(portInformation[5]);
                     int portNumber = ((p1 * 256) + p2);
-                    //start thread that handles the data connection
-                    //dataConnection = new FileTransfer(this, portNumber);
-                    dataConnection.start();
                     //Inform client
-                    writer.println("200 port open\n");
+                    writer.println("200 port ready\n");
                     break;
                 case "LIST":
                     dataConnection = new FileTransfer(this,passivePortNumber,"LIST");
@@ -114,7 +112,8 @@ public class ClientHandler extends Thread implements Runnable {
 
     public void shutDownDataConnection(){
         dataConnection = null;
-        writer.println("226 Closing data connection");
+        writer.println("226 Closing data connection\n");
+        writer.flush();
     }
 
     /**
@@ -153,7 +152,7 @@ public class ClientHandler extends Thread implements Runnable {
             } else {
                 //Invalid credentials
                 System.out.println("Invalid user");
-                validateUser();
+                //TODO: what happens with wrong password username?
             }
         }
 
